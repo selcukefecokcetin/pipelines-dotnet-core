@@ -1,8 +1,3 @@
-# ASP.NET Core
-# Build and test ASP.NET Core projects targeting .NET Core.
-# Add steps that run tests, create a NuGet package, deploy, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
-
 trigger:
 - master
 
@@ -11,7 +6,55 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
+  webAppName: 'webappname123'
 
-steps:
-- script: dotnet build --configuration $(buildConfiguration)
-  displayName: 'dotnet build $(buildConfiguration)'
+stages:
+# ---------------------- BUILD STAGE ----------------------
+- stage: Build
+  displayName: "Build Stage"
+  jobs:
+  - job: BuildJob
+    displayName: "Build .NET App"
+    steps:
+    - task: UseDotNet@2
+      inputs:
+        packageType: 'sdk'
+        version: '8.x' # or your required .NET version
+
+    - script: dotnet restore
+      displayName: "Restore NuGet Packages"
+
+    - script: dotnet build --configuration $(buildConfiguration)
+      displayName: "Build Solution"
+
+    - script: dotnet publish -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)
+      displayName: "Publish to Artifact Staging"
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+# ---------------------- DEPLOY STAGE ----------------------
+- stage: Deploy
+  displayName: "Deploy Stage"
+  dependsOn: Build
+  jobs:
+  - deployment: DeployWebApp
+    displayName: "Deploy to Azure Web App"
+    environment: "production"
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+
+          - task: AzureWebApp@1
+            displayName: "Deploy to WebApp: $(webAppName)"
+            inputs:
+              azureSubscription: 'myiam'  # Service connection
+              appType: 'webApp'      # change to webApp if Windows App Service
+              appName: '$(webAppName)'
+              package: '$(Pipeline.Workspace)/drop'
