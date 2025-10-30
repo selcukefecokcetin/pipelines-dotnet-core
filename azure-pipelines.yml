@@ -9,26 +9,26 @@ variables:
   webAppName: 'webappname123'
 
 stages:
-# ---------------------- BUILD STAGE ----------------------
+
+# ------------------------------------------------------
+# Build Stage
+# ------------------------------------------------------
 - stage: Build
   displayName: "Build Stage"
   jobs:
   - job: BuildJob
-    displayName: "Build .NET App"
+    displayName: "Build .NET Project"
     steps:
     - task: UseDotNet@2
       inputs:
         packageType: 'sdk'
-        version: '8.x' # or your required .NET version
-
-    - script: dotnet restore
-      displayName: "Restore NuGet Packages"
+        version: '8.x' # adjust if needed
 
     - script: dotnet build --configuration $(buildConfiguration)
-      displayName: "Build Solution"
+      displayName: "dotnet build $(buildConfiguration)"
 
     - script: dotnet publish -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)
-      displayName: "Publish to Artifact Staging"
+      displayName: "Publish Build Output"
 
     - task: PublishBuildArtifacts@1
       inputs:
@@ -36,7 +36,10 @@ stages:
         ArtifactName: 'drop'
         publishLocation: 'Container'
 
-# ---------------------- DEPLOY STAGE ----------------------
+
+# ------------------------------------------------------
+# Deploy Stage
+# ------------------------------------------------------
 - stage: Deploy
   displayName: "Deploy Stage"
   dependsOn: Build
@@ -52,9 +55,9 @@ stages:
             artifact: drop
 
           - task: AzureWebApp@1
-            displayName: "Deploy to WebApp: $(webAppName)"
+            displayName: "Deploy to $(webAppName)"
             inputs:
-              azureSubscription: 'myiam'  # Service connection
-              appType: 'webApp'      # change to webApp if Windows App Service
+              azureSubscription: 'myserviceconnection'  # 
+              appType: 'webApp'                    # change to webApp if Windows App Service
               appName: '$(webAppName)'
               package: '$(Pipeline.Workspace)/drop'
